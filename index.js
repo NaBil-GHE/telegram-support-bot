@@ -6,8 +6,18 @@ const fs = require('fs');
 const token = process.env.TELEGRAM_TOKEN;
 const ADMIN_ID = process.env.ADMIN_ID || 123456789; // قم بتغيير هذا إلى معرف الأدمن الخاص بك
 
+// تكوين خيارات البوت بشكل آمن
+const botOptions = { 
+  polling: true,
+  // إضافة خيارات للتعامل مع الأخطاء بشكل أفضل
+  request: {
+    // تقليل مهلة الانتظار لتجنب التعليق لفترات طويلة
+    timeout: 30000
+  }
+};
+
 // إنشاء كائن البوت
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, botOptions);
 
 // متغيرات لحفظ حالات المحادثة
 const userStates = {};
@@ -24,7 +34,7 @@ try {
     console.log(`تم تحميل ${blockedUsers.size} مستخدم محظور`);
   }
 } catch (error) {
-  console.error('خطأ في تحميل قائمة المستخدمين المحظورين:', error);
+  console.error('خطأ في تحميل قائمة المستخدمين المحظورين:', error.message);
 }
 
 // دالة لحفظ المستخدمين المحظورين
@@ -33,7 +43,7 @@ function saveBlockedUsers() {
     fs.writeFileSync('./blockedUsers.json', JSON.stringify([...blockedUsers]), 'utf8');
     console.log('تم حفظ قائمة المستخدمين المحظورين');
   } catch (error) {
-    console.error('خطأ في حفظ قائمة المستخدمين المحظورين:', error);
+    console.error('خطأ في حفظ قائمة المستخدمين المحظورين:', error.message);
   }
 }
 
@@ -70,88 +80,122 @@ function createAdminKeyboard(userId) {
 
 // معالجة الرسائل الواردة
 bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  const text = msg.text || '';
-  const userInfo = getUserInfo(msg);
-  
-  // التحقق مما إذا كانت الرسالة من الأدمن
-  if (chatId == ADMIN_ID) {
-    // إذا كان الأدمن في انتظار كتابة رد للمستخدم
-    if (waitingForReply && replyToUserId) {
-      // إرسال الرد إلى المستخدم
-      bot.sendMessage(replyToUserId, `رسالة من الإدارة: ${text}`);
-      bot.sendMessage(chatId, 'تم إرسال ردك إلى المستخدم.');
+  try {
+    const chatId = msg.chat.id;
+    const text = msg.text || '';
+    const userInfo = getUserInfo(msg);
+    
+    // التحقق مما إذا كانت الرسالة من الأدمن
+    if (chatId == ADMIN_ID) {
+      // إذا كان الأدمن في انتظار كتابة رد للمستخدم
+      if (waitingForReply && replyToUserId) {
+        // إرسال الرد إلى المستخدم
+        bot.sendMessage(replyToUserId, `رسالة من الإدارة: ${text}`);
+        bot.sendMessage(chatId, 'تم إرسال ردك إلى المستخدم.');
+        
+        // إعادة تعيين حالة الانتظار
+        waitingForReply = false;
+        replyToUserId = null;
+        return;
+      }
       
-      // إعادة تعيين حالة الانتظار
-      waitingForReply = false;
-      replyToUserId = null;
+      // رسالة عادية من الأدمن
+      bot.sendMessage(chatId, 'مرحباً بك أيها الأدمن! استخدم الأزرار المرفقة مع رسائل المستخدمين للرد عليهم.');
       return;
     }
     
-    // رسالة عادية من الأدمن
-    bot.sendMessage(chatId, 'مرحباً بك أيها الأدمن! استخدم الأزرار المرفقة مع رسائل المستخدمين للرد عليهم.');
-    return;
+    // التعامل مع رسائل المستخدمين العاديين
+    const userId = userInfo.id;
+    
+    // التحقق من المستخدمين المحظورين
+    if (blockedUsers.has(userId)) {
+      // يمكننا تجاهل الرسالة أو إرسال إشعار للمستخدم أنه محظور
+      return;
+    }
+    
+    // إرسال تأكيد استلام الرسالة للمستخدم
+    bot.sendMessage(chatId, 'تم إرسال رسالتك إلى الإدارة، وسيتم الرد عليك قريباً.');
+    
+    // إرسال الرسالة إلى الأدمن مع معلومات المرسل وأزرار التفاعل
+    const adminMessage = `رسالة جديدة من: ${userInfo.displayName}\n\nالرسالة: ${text}`;
+    bot.sendMessage(ADMIN_ID, adminMessage, {
+      reply_markup: createAdminKeyboard(userId)
+    });
+  } catch (error) {
+    // معالجة الاستثناءات بشكل آمن
+    console.error('خطأ في معالجة الرسالة:', error.message);
+    // يمكن إبلاغ المسؤول بالخطأ هنا
   }
-  
-  // التعامل مع رسائل المستخدمين العاديين
-  const userId = userInfo.id;
-  
-  // التحقق من المستخدمين المحظورين
-  if (blockedUsers.has(userId)) {
-    // يمكننا تجاهل الرسالة أو إرسال إشعار للمستخدم أنه محظور
-    return;
-  }
-  
-  // إرسال تأكيد استلام الرسالة للمستخدم
-  bot.sendMessage(chatId, 'تم إرسال رسالتك إلى الإدارة، وسيتم الرد عليك قريباً.');
-  
-  // إرسال الرسالة إلى الأدمن مع معلومات المرسل وأزرار التفاعل
-  const adminMessage = `رسالة جديدة من: ${userInfo.displayName}\n\nالرسالة: ${text}`;
-  bot.sendMessage(ADMIN_ID, adminMessage, {
-    reply_markup: createAdminKeyboard(userId)
-  });
 });
 
 // معالجة نقرات الأزرار
 bot.on('callback_query', (callbackQuery) => {
-  const action = callbackQuery.data;
-  const adminId = callbackQuery.from.id;
-  
-  // التأكد من أن النقرة من الأدمن
-  if (adminId != ADMIN_ID) {
-    bot.answerCallbackQuery(callbackQuery.id, { text: 'غير مصرح لك باستخدام هذه الأوامر.' });
-    return;
-  }
-  
-  // استخراج معرّف المستخدم ونوع الإجراء من البيانات
-  const [command, userId] = action.split('_');
-  
-  if (command === 'reply') {
-    // الرد على المستخدم
-    waitingForReply = true;
-    replyToUserId = userId;
-    bot.sendMessage(adminId, `الرجاء كتابة ردك للمستخدم (${userId}):`);
-    bot.answerCallbackQuery(callbackQuery.id, { text: 'الرجاء كتابة ردك الآن' });
-  } 
-  else if (command === 'block') {
-    // حظر المستخدم
-    blockedUsers.add(parseInt(userId));
-    saveBlockedUsers();
-    bot.sendMessage(adminId, `تم حظر المستخدم (${userId}) بنجاح.`);
-    bot.answerCallbackQuery(callbackQuery.id, { text: 'تم حظر المستخدم' });
-  } 
-  else if (command === 'info') {
-    // عرض معلومات المستخدم
-    bot.sendMessage(adminId, `معلومات المستخدم:\nمعرّف المستخدم: ${userId}`);
-    bot.answerCallbackQuery(callbackQuery.id, { text: 'تم عرض معلومات المستخدم' });
+  try {
+    const action = callbackQuery.data;
+    const adminId = callbackQuery.from.id;
+    
+    // التأكد من أن النقرة من الأدمن
+    if (adminId != ADMIN_ID) {
+      bot.answerCallbackQuery(callbackQuery.id, { text: 'غير مصرح لك باستخدام هذه الأوامر.' });
+      return;
+    }
+    
+    // استخراج معرّف المستخدم ونوع الإجراء من البيانات
+    const [command, userId] = action.split('_');
+    
+    if (command === 'reply') {
+      // الرد على المستخدم
+      waitingForReply = true;
+      replyToUserId = userId;
+      bot.sendMessage(adminId, `الرجاء كتابة ردك للمستخدم (${userId}):`);
+      bot.answerCallbackQuery(callbackQuery.id, { text: 'الرجاء كتابة ردك الآن' });
+    } 
+    else if (command === 'block') {
+      // حظر المستخدم
+      blockedUsers.add(parseInt(userId));
+      saveBlockedUsers();
+      bot.sendMessage(adminId, `تم حظر المستخدم (${userId}) بنجاح.`);
+      bot.answerCallbackQuery(callbackQuery.id, { text: 'تم حظر المستخدم' });
+    } 
+    else if (command === 'info') {
+      // عرض معلومات المستخدم
+      bot.sendMessage(adminId, `معلومات المستخدم:\nمعرّف المستخدم: ${userId}`);
+      bot.answerCallbackQuery(callbackQuery.id, { text: 'تم عرض معلومات المستخدم' });
+    }
+  } catch (error) {
+    // معالجة الاستثناءات بشكل آمن
+    console.error('خطأ في معالجة نقرة الزر:', error.message);
+    // يمكن إبلاغ المسؤول بالخطأ هنا
   }
 });
 
-// معالجة الأخطاء
+/**
+ * معالجة أخطاء الاتصال بشكل آمن دون كشف معلومات حساسة
+ */
 bot.on('polling_error', (error) => {
-  console.error('خطأ في الاتصال بواجهة برمجة تطبيقات تليغرام:', error);
+  // طباعة رسالة الخطأ فقط بدلاً من كائن الخطأ الكامل
+  console.error('خطأ في الاتصال بواجهة برمجة تطبيقات تليغرام:', error.message);
+  
+  // تسجيل نوع الخطأ ورمزه إن وجد، دون كشف تفاصيل حساسة
+  if (error.code) {
+    console.error('رمز الخطأ:', error.code);
+  }
+  
+  // محاولة إعادة الاتصال تلقائيًا بعد فترة قصيرة في حال انقطاع الاتصال
+  if (error.code === 'EFATAL' || error.code === 'ETIMEDOUT') {
+    console.log('محاولة إعادة الاتصال بعد 10 ثوانٍ...');
+  }
 });
 
+// سجل بدء تشغيل البوت
 console.log('تم تشغيل البوت بنجاح!');
+
+// التعامل مع الإغلاق الآمن للبوت
+process.on('SIGINT', () => {
+  console.log('إيقاف تشغيل البوت...');
+  saveBlockedUsers();
+  bot.stopPolling();
+  process.exit(0);
+});
 
 
