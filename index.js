@@ -181,6 +181,7 @@ function handleUserCallbacks(callbackQuery) {
 
 هذا البوت يسهل التواصل بين المستخدمين والإدارة.
 الإصدار: 1.1.0
+*المطور:* @B_NBL
     `, { parse_mode: 'Markdown' });
   }
 }
