@@ -109,8 +109,11 @@ function handleUserMessage(msg, userInfo, text) {
   // إرسال الرسالة إلى الأدمن مع معلومات المرسل وأزرار التفاعل
   const adminMessage = `📨 رسالة جديدة من: ${userInfo.displayName}\n\nالرسالة: ${text}`;
   
+  // استخراج اسم المستخدم إذا كان موجودًا (للتواصل المباشر)
+  const username = userInfo.username !== 'غير متوفر' ? userInfo.username : null;
+  
   bot.sendMessage(config.adminId, adminMessage, {
-    reply_markup: uiService.createAdminKeyboard(userId)
+    reply_markup: uiService.createAdminKeyboard(userId, username)
   });
   
   stats.messagesSent++;

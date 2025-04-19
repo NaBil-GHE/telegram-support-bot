@@ -3,10 +3,12 @@
 /**
  * إنشاء لوحة المفاتيح الخاصة برسائل الأدمن
  * @param {number} userId معرف المستخدم
+ * @param {string} username اسم المستخدم إن وجد
  * @returns {Object} كائن يمثل لوحة المفاتيح
  */
-function createAdminKeyboard(userId) {
-  return {
+function createAdminKeyboard(userId, username = null) {
+  // صف الأزرار الأساسية
+  const keyboard = {
     inline_keyboard: [
       [
         { text: 'رد عليه', callback_data: `reply_${userId}` },
@@ -15,12 +17,23 @@ function createAdminKeyboard(userId) {
       [
         { text: 'معلومات المستخدم', callback_data: `info_${userId}` },
         { text: 'إلغاء الحظر', callback_data: `unblock_${userId}` }
-      ],
-      [
-        { text: 'إدارة المستخدمين', callback_data: `manage_users` }
       ]
     ]
   };
+  
+  // إضافة زر "تواصل مباشر" إذا كان لدى المستخدم اسم مستخدم
+  if (username) {
+    keyboard.inline_keyboard.push([
+      { text: 'تواصل مباشر', url: `https://t.me/${username.replace('@', '')}` }
+    ]);
+  }
+  
+  // إضافة صف إدارة المستخدمين
+  keyboard.inline_keyboard.push([
+    { text: 'إدارة المستخدمين', callback_data: `manage_users` }
+  ]);
+  
+  return keyboard;
 }
 
 /**
