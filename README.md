@@ -63,4 +63,5 @@ node index.js
 
 ## الترخيص
 
-هذا المشروع تحت ترخيص NABIL GHENISSA
+هذا المشروع تحت ترخيص NABIL GHENISSA.
+

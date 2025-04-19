@@ -58,7 +58,8 @@ bot.onText(/\/about/, (msg) => {
 
 هذا البوت يسهل التواصل بين المستخدمين والإدارة.
 الإصدار: 1.1.0
-*المطور:*@B_NBL
+*المطور:* @B_NBL
+*للتواصل:* t.me/B_NBL
   `, { parse_mode: 'Markdown' });
 });
 
@@ -182,6 +183,7 @@ function handleUserCallbacks(callbackQuery) {
 هذا البوت يسهل التواصل بين المستخدمين والإدارة.
 الإصدار: 1.1.0
 *المطور:* @B_NBL
+*للتواصل:* t.me/B_NBL
     `, { parse_mode: 'Markdown' });
   }
 }
