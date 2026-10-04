@@ -7,6 +7,14 @@ const config = require('./config');
 const userService = require('./services/userService');
 const uiService = require('./services/uiService');
 
+
+
+const express = require('express');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+
 // إنشاء كائن البوت
 const bot = new TelegramBot(config.token, config.botOptions);
 
@@ -283,6 +291,21 @@ bot.on('polling_error', (error) => {
 // سجل بدء تشغيل البوت
 console.log('تم تشغيل البوت بنجاح!');
 
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    bot: 'running'
+  });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Health API running on port ${PORT}`);
+});
+
+
+
 // التعامل مع الإغلاق الآمن للبوت
 process.on('SIGINT', () => {
   console.log('إيقاف تشغيل البوت...');
@@ -290,5 +313,8 @@ process.on('SIGINT', () => {
   bot.stopPolling();
   process.exit(0);
 });
+
+
+
 
 
