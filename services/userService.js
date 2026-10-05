@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config');
 
 // التأكد من وجود مجلد البيانات
-const dataDir = path.join(__dirname, '../data');
+const dataDir = path.dirname(config.blockedUsersFile);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -18,7 +18,16 @@ function loadBlockedUsers() {
     if (fs.existsSync(config.blockedUsersFile)) {
       const data = fs.readFileSync(config.blockedUsersFile, 'utf8');
       const blocked = JSON.parse(data);
-      blocked.forEach(id => blockedUsers.add(id));
+      if (!Array.isArray(blocked)) {
+        throw new Error('صيغة قائمة الحظر غير صحيحة');
+      }
+
+      blocked.forEach(id => {
+        const numericId = Number(id);
+        if (Number.isSafeInteger(numericId)) {
+          blockedUsers.add(numericId);
+        }
+      });
       console.log(`تم تحميل ${blockedUsers.size} مستخدم محظور`);
     }
   } catch (error) {
@@ -63,6 +72,11 @@ function unblockUser(userId) {
   return result;
 }
 
+// الحصول على قائمة المستخدمين المحظورين
+function getBlockedUsers() {
+  return [...blockedUsers];
+}
+
 // الحصول على معلومات المستخدم من الرسالة
 function getUserInfo(msg) {
   const userId = msg.from.id;
@@ -91,5 +105,6 @@ module.exports = {
   isUserBlocked,
   blockUser,
   unblockUser,
+  getBlockedUsers,
   saveBlockedUsers
 };

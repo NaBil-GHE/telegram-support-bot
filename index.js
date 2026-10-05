@@ -31,7 +31,7 @@ const stats = {
 };
 
 // معالجة أمر /start
-bot.onText(/\/start/, (msg) => {
+bot.onText(/^\/start(?:@\w+)?$/, (msg) => {
   const chatId = msg.chat.id;
   
   bot.sendMessage(
@@ -42,7 +42,7 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // معالجة أمر /help
-bot.onText(/\/help/, (msg) => {
+bot.onText(/^\/help(?:@\w+)?$/, (msg) => {
   const chatId = msg.chat.id;
   
   bot.sendMessage(chatId, `
@@ -58,7 +58,7 @@ bot.onText(/\/help/, (msg) => {
 });
 
 // معالجة أمر /about
-bot.onText(/\/about/, (msg) => {
+bot.onText(/^\/about(?:@\w+)?$/, (msg) => {
   const chatId = msg.chat.id;
   
   bot.sendMessage(chatId, `
@@ -87,7 +87,7 @@ bot.on('message', (msg) => {
     stats.messagesReceived++;
     
     // التحقق مما إذا كانت الرسالة من الأدمن
-    if (chatId == config.adminId) {
+    if (chatId === config.adminId) {
       handleAdminMessage(msg, userInfo, text);
       return;
     }
@@ -157,7 +157,7 @@ bot.on('callback_query', (callbackQuery) => {
     const adminId = callbackQuery.from.id;
     
     // التعامل مع أزرار المستخدمين العاديين
-    if (adminId != config.adminId) {
+    if (adminId !== config.adminId) {
       handleUserCallbacks(callbackQuery);
       return;
     }
@@ -207,7 +207,7 @@ function handleAdminCallbacks(callbackQuery) {
   const chatId = msg.chat.id;
   
   // إذا كانت البيانات تحتوي على مُعرّف مستخدم
-  if (action.includes('_')) {
+  if (/^(reply|block|unblock|info)_/.test(action)) {
     const [command, userId] = action.split('_');
     
     if (command === 'reply') {
@@ -252,9 +252,13 @@ function handleAdminCallbacks(callbackQuery) {
       bot.answerCallbackQuery(queryId, { text: 'إدارة المستخدمين' });
     }
     else if (action === 'list_blocked') {
-      // عرض قائمة المستخدمين المحظورين - تنفيذ لاحقًا
-      bot.sendMessage(chatId, 'سيتم تنفيذ هذه الميزة لاحقًا');
-      bot.answerCallbackQuery(queryId, { text: 'قائمة المحظورين' });
+      const blockedUsers = userService.getBlockedUsers();
+      const message = blockedUsers.length
+        ? `👥 *المستخدمون المحظورون*\n\n${blockedUsers.map(id => `• ${id}`).join('\n')}`
+        : 'لا يوجد مستخدمون محظورون حالياً.';
+
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      bot.answerCallbackQuery(queryId, { text: 'تم عرض قائمة المحظورين' });
     }
     else if (action === 'stats') {
       // عرض إحصائيات البوت
