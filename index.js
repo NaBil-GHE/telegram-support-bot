@@ -33,11 +33,18 @@ const stats = {
 // معالجة أمر /start
 bot.onText(/^\/start(?:@\w+)?$/, (msg) => {
   const chatId = msg.chat.id;
+
+  if (chatId === config.adminId) {
+    bot.sendMessage(chatId, config.messages.adminWelcome, {
+      reply_markup: uiService.createAdminMenuKeyboard()
+    });
+    return;
+  }
   
   bot.sendMessage(
     chatId, 
     config.messages.welcome, 
-    { reply_markup: uiService.createWelcomeKeyboard() }
+    { reply_markup: uiService.createUserMenuKeyboard() }
   );
 });
 
@@ -82,6 +89,29 @@ bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text || '';
     const userInfo = userService.getUserInfo(msg);
+
+    if (text === 'المساعدة') {
+      sendHelpMessage(chatId);
+      return;
+    }
+
+    if (text === 'حول البوت') {
+      sendAboutMessage(chatId);
+      return;
+    }
+
+    if (chatId === config.adminId && text === 'إدارة المستخدمين') {
+      bot.sendMessage(chatId, '*إدارة المستخدمين* 👥', {
+        parse_mode: 'Markdown',
+        reply_markup: uiService.createUserManagementKeyboard()
+      });
+      return;
+    }
+
+    if (chatId === config.adminId && text === 'إحصائيات') {
+      sendStatsMessage(chatId);
+      return;
+    }
     
     // زيادة عدد الرسائل المستلمة
     stats.messagesReceived++;
@@ -135,6 +165,41 @@ function handleUserMessage(msg, userInfo, text) {
   stats.messagesSent++;
 }
 
+function sendHelpMessage(chatId) {
+  bot.sendMessage(chatId, `
+📝 *كيفية استخدام البوت*
+- فقط أرسل رسالتك وسنقوم بتوصيلها للأدمن
+- ستتلقى ردًا من الأدمن عبر هذا البوت
+
+🛠 *الأوامر المتاحة*
+/start - بدء استخدام البوت
+/help - عرض هذه المساعدة
+/about - حول البوت
+  `, { parse_mode: 'Markdown' });
+}
+
+function sendAboutMessage(chatId) {
+  bot.sendMessage(chatId, `
+*بوت التواصل مع الإدارة* 📱
+
+هذا البوت يسهل التواصل بين المستخدمين والإدارة.
+الإصدار: 1.1.0
+*المطور:* @B_NBL
+*للتواصل:* t.me/B_NBL
+  `, { parse_mode: 'Markdown' });
+}
+
+function sendStatsMessage(chatId) {
+  const uptime = Math.floor((new Date() - stats.startTime) / 1000 / 60);
+
+  bot.sendMessage(chatId, `
+📊 *إحصائيات البوت*
+📨 الرسائل المستلمة: ${stats.messagesReceived}
+📤 الرسائل المرسلة: ${stats.messagesSent}
+⏱ وقت التشغيل: ${uptime} دقيقة
+  `, { parse_mode: 'Markdown' });
+}
+
 // معالجة رسائل الأدمن
 function handleAdminMessage(msg, userInfo, text) {
   const chatId = msg.chat.id;
@@ -164,7 +229,9 @@ function handleAdminMessage(msg, userInfo, text) {
   }
   
   // رسالة عادية من الأدمن
-  bot.sendMessage(chatId, config.messages.adminWelcome);
+  bot.sendMessage(chatId, config.messages.adminWelcome, {
+    reply_markup: uiService.createUserManagementKeyboard()
+  });
 }
 
 // معالجة نقرات الأزرار

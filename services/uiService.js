@@ -52,6 +52,34 @@ function createWelcomeKeyboard() {
 }
 
 /**
+ * إنشاء قائمة ثابتة للمستخدم تظهر أسفل خانة الكتابة.
+ * @returns {Object} كائن لوحة المفاتيح
+ */
+function createUserMenuKeyboard() {
+  return {
+    keyboard: [
+      [{ text: 'المساعدة' }, { text: 'حول البوت' }]
+    ],
+    resize_keyboard: true,
+    is_persistent: true
+  };
+}
+
+/**
+ * إنشاء قائمة ثابتة للأدمن تظهر أسفل خانة الكتابة.
+ * @returns {Object} كائن لوحة المفاتيح
+ */
+function createAdminMenuKeyboard() {
+  return {
+    keyboard: [
+      [{ text: 'إدارة المستخدمين' }, { text: 'إحصائيات' }]
+    ],
+    resize_keyboard: true,
+    is_persistent: true
+  };
+}
+
+/**
  * إنشاء لوحة مفاتيح إدارة المستخدمين
  * @returns {Object} كائن يمثل لوحة المفاتيح
  */
@@ -72,5 +100,7 @@ function createUserManagementKeyboard() {
 module.exports = {
   createAdminKeyboard,
   createWelcomeKeyboard,
+  createUserMenuKeyboard,
+  createAdminMenuKeyboard,
   createUserManagementKeyboard
 };
