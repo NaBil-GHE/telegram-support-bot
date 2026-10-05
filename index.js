@@ -104,6 +104,7 @@ bot.on('message', (msg) => {
 function handleUserMessage(msg, userInfo, text) {
   const chatId = msg.chat.id;
   const userId = userInfo.id;
+  const hasText = Boolean(text.trim());
   
   // التحقق من المستخدمين المحظورين
   if (userService.isUserBlocked(userId)) {
@@ -115,7 +116,8 @@ function handleUserMessage(msg, userInfo, text) {
   bot.sendMessage(chatId, config.messages.messageSent);
   
   // إرسال الرسالة إلى الأدمن مع معلومات المرسل وأزرار التفاعل
-  const adminMessage = `📨 رسالة جديدة من: ${userInfo.displayName}\n\nالرسالة: ${text}`;
+  const messageDescription = hasText ? text : 'رسالة غير نصية مرفقة أدناه.';
+  const adminMessage = `📨 رسالة جديدة من: ${userInfo.displayName}\n\nالرسالة: ${messageDescription}`;
   
   // استخراج اسم المستخدم إذا كان موجودًا (للتواصل المباشر)
   const username = userInfo.username !== 'غير متوفر' ? userInfo.username : null;
@@ -123,6 +125,12 @@ function handleUserMessage(msg, userInfo, text) {
   bot.sendMessage(config.adminId, adminMessage, {
     reply_markup: uiService.createAdminKeyboard(userId, username)
   });
+
+  // تمرير الصور والملفات والوسائط الأخرى بدل محاولة إرسال نص فارغ.
+  if (!hasText) {
+    bot.forwardMessage(config.adminId, chatId, msg.message_id)
+      .catch((error) => console.error('خطأ في تمرير رسالة المستخدم:', error.message));
+  }
   
   stats.messagesSent++;
 }
@@ -133,15 +141,25 @@ function handleAdminMessage(msg, userInfo, text) {
   
   // إذا كان الأدمن في انتظار كتابة رد للمستخدم
   if (waitingForReply && replyToUserId) {
+    if (!text.trim()) {
+      bot.sendMessage(chatId, 'الرجاء كتابة رد نصي للمستخدم.');
+      return;
+    }
+
     // إرسال الرد إلى المستخدم
-    bot.sendMessage(replyToUserId, `${config.messages.adminPrefix}${text}`);
-    bot.sendMessage(chatId, config.messages.replySent);
-    
-    // إعادة تعيين حالة الانتظار
-    waitingForReply = false;
-    replyToUserId = null;
-    
-    stats.messagesSent++;
+    bot.sendMessage(replyToUserId, `${config.messages.adminPrefix}${text}`)
+      .then(() => {
+        bot.sendMessage(chatId, config.messages.replySent);
+
+        // إعادة تعيين حالة الانتظار بعد نجاح الإرسال فقط.
+        waitingForReply = false;
+        replyToUserId = null;
+        stats.messagesSent++;
+      })
+      .catch((error) => {
+        console.error('خطأ في إرسال رد الأدمن:', error.message);
+        bot.sendMessage(chatId, 'تعذر إرسال الرد. حاول مرة أخرى.');
+      });
     return;
   }
   
@@ -209,26 +227,32 @@ function handleAdminCallbacks(callbackQuery) {
   // إذا كانت البيانات تحتوي على مُعرّف مستخدم
   if (/^(reply|block|unblock|info)_/.test(action)) {
     const [command, userId] = action.split('_');
+    const numericUserId = Number(userId);
+
+    if (!Number.isSafeInteger(numericUserId) || numericUserId <= 0) {
+      bot.answerCallbackQuery(queryId, { text: 'معرّف المستخدم غير صالح', show_alert: true });
+      return;
+    }
     
     if (command === 'reply') {
       // الرد على المستخدم
       waitingForReply = true;
-      replyToUserId = userId;
-      bot.sendMessage(chatId, `${config.messages.replyPrompt} (${userId}):`);
+      replyToUserId = numericUserId;
+      bot.sendMessage(chatId, `${config.messages.replyPrompt} (${numericUserId}):`);
       bot.answerCallbackQuery(queryId, { text: 'الرجاء كتابة ردك الآن' });
     } 
     else if (command === 'block') {
       // حظر المستخدم
-      userService.blockUser(userId);
-      bot.sendMessage(chatId, `تم حظر المستخدم (${userId}) بنجاح.`);
+      userService.blockUser(numericUserId);
+      bot.sendMessage(chatId, `تم حظر المستخدم (${numericUserId}) بنجاح.`);
       bot.answerCallbackQuery(queryId, { text: 'تم حظر المستخدم' });
     } 
     else if (command === 'unblock') {
       // إلغاء حظر المستخدم
-      const result = userService.unblockUser(userId);
+      const result = userService.unblockUser(numericUserId);
       const message = result 
-        ? `تم إلغاء حظر المستخدم (${userId}) بنجاح.`
-        : `المستخدم (${userId}) غير محظور بالفعل.`;
+        ? `تم إلغاء حظر المستخدم (${numericUserId}) بنجاح.`
+        : `المستخدم (${numericUserId}) غير محظور بالفعل.`;
       
       bot.sendMessage(chatId, message);
       bot.answerCallbackQuery(queryId, { text: result ? 'تم إلغاء الحظر' : 'غير محظور' });
@@ -237,7 +261,7 @@ function handleAdminCallbacks(callbackQuery) {
       // عرض معلومات المستخدم
       bot.sendMessage(chatId, `
 📊 *معلومات المستخدم*
-🆔 معرّف المستخدم: ${userId}
+    🆔 معرّف المستخدم: ${numericUserId}
       `, { parse_mode: 'Markdown' });
       bot.answerCallbackQuery(queryId, { text: 'تم عرض معلومات المستخدم' });
     }
