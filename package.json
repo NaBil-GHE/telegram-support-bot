@@ -18,6 +18,7 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.0.3",
+    "express": "^5.2.1",
     "node-telegram-bot-api": "^0.61.0"
   },
   "devDependencies": {

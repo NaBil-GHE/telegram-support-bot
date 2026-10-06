@@ -38,7 +38,7 @@
 1. قم بتثبيت الحزم المطلوبة:
 
 ```bash
-npm install node-telegram-bot-api dotenv
+npm install node-telegram-bot-api dotenv express
 ```
 
 2. قم بإنشاء ملف `.env` في المجلد الرئيسي للمشروع وأضف بيانات التكوين التالية:
@@ -117,4 +117,3 @@ npm run dev       # للتشغيل في وضع التطوير (مع إعادة �
 ---
 
 تم التحديث الأخير: أبريل 2025
-

@@ -13,10 +13,21 @@ const express = require('express');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isBotConfigured = Boolean(config.token);
 
 
 // إنشاء كائن البوت
-const bot = new TelegramBot(config.token, config.botOptions);
+const bot = new TelegramBot(
+  config.token || 'TELEGRAM_TOKEN_NOT_CONFIGURED',
+  {
+    ...config.botOptions,
+    polling: isBotConfigured && config.botOptions.polling
+  }
+);
+
+if (!isBotConfigured) {
+  console.warn('تحذير: TELEGRAM_TOKEN غير مضبوط، سيتم تشغيل Health API فقط.');
+}
 
 // متغيرات لحفظ حالات المحادثة
 const userStates = {};
@@ -389,9 +400,9 @@ console.log('تم تشغيل البوت بنجاح!');
 
 app.get('/health', (req, res) => {
   res.status(200).json({
-    status: 'ok',
+    status: isBotConfigured ? 'ok' : 'degraded',
     uptime: Math.floor(process.uptime()),
-    bot: 'running'
+    bot: isBotConfigured ? 'running' : 'not_configured'
   });
 });
 
@@ -408,7 +419,6 @@ process.on('SIGINT', () => {
   bot.stopPolling();
   process.exit(0);
 });
-
 
 
 
